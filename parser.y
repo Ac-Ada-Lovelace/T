@@ -11,6 +11,19 @@ int yylex(void);
 // 符号表
 std::unordered_map<std::string, std::string> symbol_table;
 
+std::stack<std::unordered_map<std::string, std::string>> symbol_table_stack;
+
+void enterScope() {
+    symbol_table_stack.push(std::unordered_map<std::string, std::string>());
+}
+
+void exitScope() {
+    if (!symbol_table_stack.empty()) {
+        symbol_table_stack.pop();
+    }
+}
+
+
 const char* LastType = NULL;
 
 void insertSymbol(const char *name, const char *type) {
@@ -68,8 +81,8 @@ int ww = 0, wtop = -1, wstack[100];
 %%
 
 Program:
-    /* empty */             { /* empty */ }
-|   Program FuncDecl        { /* empty */ }
+    /* empty */             { enterScope(); }
+|   Program FuncDecl        { exitScope(); }
 ;
 
 FuncDecl:
@@ -214,7 +227,7 @@ EndThen:
 ;
 
 Else:
-    T_Else          { /* empty */ }
+    T_Else          { enterScope(); }
 ;
 
 EndIf:
@@ -288,8 +301,14 @@ ReadInt:
 %%
 
 int main() {
+    enterScope();
+
     symbol_table.clear();
     yyparse();
+
+    while(!symbol_table_stack.empty()) {
+        symbol_table_stack.pop();
+    }
 
     return 0;
 }
