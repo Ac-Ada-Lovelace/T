@@ -15,11 +15,13 @@ int yylex(void);
 std::stack<std::unordered_map<std::string, std::string>> visible_symbol_stack;
 
 void enterScope() {
+    std::cout << "; enter scope\n";
     visible_symbol_stack.push(std::unordered_map<std::string, std::string>());
     
 }
 
 void exitScope() {
+    std::cout << "; exit scope\n";
     if (!visible_symbol_stack.empty()) {
         visible_symbol_stack.pop();
         std::cout << "; loss access to scope\n";
@@ -29,6 +31,8 @@ void exitScope() {
     }
 }
 
+
+// TODO : is temp_stack clone or reference?
 int isAccessible(const char *name) {
     std::stack<std::unordered_map<std::string, std::string>> temp_stack = visible_symbol_stack;
     while (!temp_stack.empty()) {
@@ -147,7 +151,7 @@ Args:
 |   _Args                   { std::cout << "\n\n"; }
 ;
 
-// TODO : repeat arg name check
+// TODO : repeat arg name check and fix potential scope issue
 _Args:
     T_Int T_Identifier      { 
                                 Declare($2, "int");
@@ -212,7 +216,12 @@ Stmt:
 AssignStmt:
     T_Identifier '=' Expr ';'
                             {
-                                
+                                std::cout << "; Try get symbol: " << $1 << "\n";
+                                std::cout << "; " << $1 << " : " << getSymbolType($1) << "\n";
+                                if (!isAccessible($1)) {
+                                    std::cout << "Error: " << $1 << " is not accessible\n";
+                                    exit(1);
+                                }
                                 if(isSymbolInt($1)) {
                                     std::cout << "\tpop " << $1 << "\n\n";
                                 } else if(isSymbolFlt($1)) {
