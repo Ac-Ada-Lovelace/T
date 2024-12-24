@@ -1,78 +1,81 @@
 FUNC @main:
-	var i
+	var a, b, c, d, z, x, y
 
-	push 0
-	pop i
+	var e, f, g, h, i, j, k
 
-_begWhile_1:
-	push i
-	push 10
-	cmplt
-	jz _endWhile_1
-	push i
+; T_FltConstant: 1.0
+	pushf 1.0
+	pop a
+
+; T_FltConstant: 2.0
+	pushf 2.0
+	pop b
+
+; T_FltConstant: 3.0
+	pushf 3.0
+	pop c
+
+; T_FltConstant: 4.0
+	pushf 4.0
+	pop d
+
+; T_IntConstant: 1
 	push 1
+	pop e
+
+; T_IntConstant: 2
+	push 2
+	pop f
+
+; T_IntConstant: 3
+	push 3
+	pop g
+
+; T_IntConstant: 4
+	push 4
+	pop h
+
+; T_Identifier: aType: flt
+	push a
+; T_Identifier: bType: flt
+	push b
+	add
+	pop z
+
+; T_Identifier: cType: flt
+	push c
+; T_Identifier: dType: flt
+	push d
+	sub
+	pop x
+
+; T_Identifier: xType: flt
+	push x
+; T_Identifier: zType: flt
+	push z
+	mul
+	pop y
+
+; T_Identifier: eType: int
+	push e
+; T_Identifier: fType: int
+	push f
 	add
 	pop i
 
-_begIf_1:
-	push i
-	push 3
-	cmpeq
-	push i
-	push 5
-	cmpeq
-	or
-	jz _elIf_1
-	jmp _begWhile_1
-	jmp _endIf_1
-_elIf_1:
-_endIf_1:
-
-_begIf_2:
-	push i
-	push 8
-	cmpeq
-	jz _elIf_2
-	jmp _endWhile_1
-	jmp _endIf_2
-_elIf_2:
-_endIf_2:
-
-	push i
-	push i
-	$factor
-	print "%d! = %d"
-
-	jmp _begWhile_1
-_endWhile_1:
-
-	push 0
-	ret ~
-
-ENDFUNC
-
-FUNC @factor:
-	arg n
-
-_begIf_3:
-	push n
-	push 2
-	cmplt
-	jz _elIf_3
-	push 1
-	ret ~
-
-	jmp _endIf_3
-_elIf_3:
-_endIf_3:
-
-	push n
-	push n
-	push 1
+; T_Identifier: gType: int
+	push g
+; T_Identifier: hType: int
+	push h
 	sub
-	$factor
-	mul
-	ret ~
+	pop j
+
+; T_Identifier: iType: int
+	push i
+; T_Identifier: jType: int
+	push j
+	add
+	pop k
 
 ENDFUNC
 

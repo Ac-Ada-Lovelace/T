@@ -107,32 +107,33 @@ VarDecls:
 ;
 
 VarDecl:
-    T_Int T_Identifier {
-        const char* exists = lookupSymbol($2);
-        if (exists) {
-            std::cerr << "Error: " << $2 << " already exists\n";
-            exit(1);
-        }
-        insertSymbol($2, "int");
-        std::cout << "\tvar " << $2;
-    }
-|   T_Flt T_Identifier {
-        const char* exists = lookupSymbol($2);
-        if (exists) {
-            std::cerr << "Error: " << $2 << " already exists\n";
-            exit(1);
-        }
-        insertSymbol($2, "flt");
-        std::cout << "\tvar " << $2;
-    }
+    T_Int T_Identifier      {
+                                const char* exists = lookupSymbol($2);
+                                if (exists) {
+                                    std::cerr << "Error: " << $2 << " already exists\n";
+                                    exit(1);
+                                }
+                                insertSymbol($2, "int");
+                                std::cout << "\tvar " << $2;
+                            }
+|   T_Flt T_Identifier      {
+                                const char* exists = lookupSymbol($2);
+                                if (exists) {
+                                    std::cerr << "Error: " << $2 << " already exists\n";
+                                    exit(1);
+                                }
+                                insertSymbol($2, "flt");
+                                std::cout << "\tvar " << $2;
+                            }
 |   VarDecl ',' T_Identifier {
-        const char* exists = lookupSymbol($3);
-        if (exists) {
-            std::cerr << "Error: " << $3 << " already exists\n";
-            exit(1);
-        }
-        std::cout << ", " << $3;
-    }
+                                const char* exists = lookupSymbol($3);
+                                if (exists) {
+                                    std::cerr << "Error: " << $3 << " already exists\n";
+                                    exit(1);
+                                }
+                                insertSymbol($3, LastType);
+                                std::cout << ", " << $3;
+                            }
 ;
 
 Stmts:
@@ -261,9 +262,19 @@ Expr:
 |   Expr T_And Expr         { std::cout << "\tand\n"; }
 |   '-' Expr %prec '!'      { std::cout << "\tneg\n"; }
 |   '!' Expr                { std::cout << "\tnot\n"; }
-|   T_IntConstant           { std::cout << "\tpush " << $1 << "\n"; }
-|   T_Identifier            { std::cout << "\tpush " << $1 << "\n"; }
-|   T_FltConstant           { std::cout << "\tpush " << $1 << "\n"; }
+|   T_IntConstant           {
+                                
+                                std::cout << "; T_IntConstant: " << $1  << "\n";
+                                std::cout << "\tpush " << $1 << "\n"; 
+                            }
+|   T_FltConstant           { 
+                                std::cout << "; T_FltConstant: " << $1 << "\n";
+                                std::cout << "\tpushf " << $1 << "\n"; 
+                            }
+|   T_Identifier            { 
+                                std::cout << "; T_Identifier: " << $1 << "Type: " << getSymbolType($1) << "\n";
+                                std::cout << "\tpush " << $1 << "\n";
+                            }
 |   ReadInt                 { /* empty */ }
 |   CallExpr                { /* empty */ }
 |   '(' Expr ')'            { /* empty */ }

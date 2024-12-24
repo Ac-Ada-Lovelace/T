@@ -102,8 +102,8 @@ Grammar
    67     | '-' Expr
    68     | '!' Expr
    69     | T_IntConstant
-   70     | T_Identifier
-   71     | T_FltConstant
+   70     | T_FltConstant
+   71     | T_Identifier
    72     | ReadInt
    73     | CallExpr
    74     | '(' Expr ')'
@@ -148,9 +148,9 @@ Terminals, with rules where they appear
     T_And (273) 66
     T_Or (274) 65
     T_IntConstant (275) 69
-    T_FltConstant (276) 71
+    T_FltConstant (276) 70
     T_StringConstant (277) 30 75
-    T_Identifier (278) 7 10 11 12 13 16 17 18 29 34 70
+    T_Identifier (278) 7 10 11 12 13 16 17 18 29 34 71
 
 
 Nonterminals, with rules where they appear
@@ -726,19 +726,19 @@ State 55
 
 State 56
 
-   71 Expr: T_FltConstant •
+   70 Expr: T_FltConstant •
 
-    $default  reduce using rule 71 (Expr)
+    $default  reduce using rule 70 (Expr)
 
 
 State 57
 
    34 CallExpr: T_Identifier • '(' Actuals ')'
-   70 Expr: T_Identifier •
+   71 Expr: T_Identifier •
 
     '('  shift, and go to state 69
 
-    $default  reduce using rule 70 (Expr)
+    $default  reduce using rule 71 (Expr)
 
 
 State 58
