@@ -1,31 +1,34 @@
 %{
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <glib.h>
+#include <iostream>
+#include <cstdlib>
+#include <cstring>
+#include <unordered_map>
 void yyerror(const char*);
 #define YYSTYPE char *
 int yylex(void);
 #include "y.tab.h"
 
 // 符号表
-GHashTable *symbol_table;
+std::unordered_map<std::string, std::string> symbol_table;
 
 const char* LastType = NULL;
 
 void insertSymbol(const char *name, const char *type) {
-    g_hash_table_insert(symbol_table, g_strdup(name), g_strdup(type));
+    symbol_table[name] = type;
     LastType = type;
 }
 
 const char* lookupSymbol(const char *name) {
-    return g_hash_table_lookup(symbol_table, name);
+    auto it = symbol_table.find(name);
+    if (it != symbol_table.end()) {
+        return it->second.c_str();
+    }
+    return NULL;
 }
 
 const char* getSymbolType(const char *name) {
     return lookupSymbol(name);
 }
-
 
 const char* isSymbolInt(const char *name) {
     return strcmp(lookupSymbol(name), "int") == 0 ? "int" : NULL;
@@ -34,11 +37,6 @@ const char* isSymbolInt(const char *name) {
 const char* isSymbolFlt(const char *name) {
     return strcmp(lookupSymbol(name), "flt") == 0 ? "flt" : NULL;
 }
-
-
-
-
-
 
 int ii = 0, itop = -1, istack[100];
 int ww = 0, wtop = -1, wstack[100];
@@ -66,6 +64,7 @@ int ww = 0, wtop = -1, wstack[100];
 %left '*' '/' '%'
 %left '!'
 
+
 %%
 
 Program:
@@ -75,7 +74,7 @@ Program:
 
 FuncDecl:
     RetType FuncName '(' Args ')' '{' VarDecls Stmts '}'
-                            { printf("ENDFUNC\n\n"); }
+                            { std::cout << "ENDFUNC\n\n"; }
 ;
 
 RetType:
@@ -85,56 +84,55 @@ RetType:
 ;
 
 FuncName:
-    T_Identifier            { printf("FUNC @%s:\n", $1); }
+    T_Identifier            { std::cout << "FUNC @" << $1 << ":\n"; }
 ;
 
 Args:
     /* empty */             { /* empty */ }
-|   _Args                   { printf("\n\n"); }
+|   _Args                   { std::cout << "\n\n"; }
 ;
 
 _Args:
-    T_Int T_Identifier      { printf("\targ %s", $2); }
+    T_Int T_Identifier      { std::cout << "\targ " << $2; }
 |   _Args ',' T_Int T_Identifier
-                            { printf(", %s", $4); }
-|   T_Flt T_Identifier      { printf("\targ %s", $2); }
+                            { std::cout << ", " << $4; }
+|   T_Flt T_Identifier      { std::cout << "\targ " << $2; }
 |   _Args ',' T_Flt T_Identifier
-                            { printf(", %s", $4); }
+                            { std::cout << ", " << $4; }
 ;
 
 VarDecls:
     /* empty */             { /* empty */ }
-|   VarDecls VarDecl ';'    { printf("\n\n"); }
+|   VarDecls VarDecl ';'    { std::cout << "\n\n"; }
 ;
 
-
 VarDecl:
-    T_Int T_Identifier      {   
-                                const char* exists = lookupSymbol($2);
-                                if (exists) {
-                                    fprintf(stderr ,"Error: %s already exists\n", $2);
-                                    exit(1);
-                                }
-                                insertSymbol($2, "int");
-                                printf("\tvar %s", $2);
-                            }
-|   T_Flt T_Identifier      {   
-                                const char* exists = lookupSymbol($2);
-                                if (exists) {
-                                    fprintf(stderr ,"Error: %s already exists\n", $2);
-                                    exit(1);
-                                }
-                                insertSymbol($2, "flt");
-                                printf("\tvar %s", $2); }
-|   VarDecl ',' T_Identifier
-                            {   
-                                const char* exists = lookupSymbol($3);
-                                if (exists) {
-                                    fprintf(stderr ,"Error: %s already exists\n", $3);
-                                    exit(1);
-                                }
-                                printf(", %s", $3);
-                            }
+    T_Int T_Identifier {
+        const char* exists = lookupSymbol($2);
+        if (exists) {
+            std::cerr << "Error: " << $2 << " already exists\n";
+            exit(1);
+        }
+        insertSymbol($2, "int");
+        std::cout << "\tvar " << $2;
+    }
+|   T_Flt T_Identifier {
+        const char* exists = lookupSymbol($2);
+        if (exists) {
+            std::cerr << "Error: " << $2 << " already exists\n";
+            exit(1);
+        }
+        insertSymbol($2, "flt");
+        std::cout << "\tvar " << $2;
+    }
+|   VarDecl ',' T_Identifier {
+        const char* exists = lookupSymbol($3);
+        if (exists) {
+            std::cerr << "Error: " << $3 << " already exists\n";
+            exit(1);
+        }
+        std::cout << ", " << $3;
+    }
 ;
 
 Stmts:
@@ -155,12 +153,12 @@ Stmt:
 
 AssignStmt:
     T_Identifier '=' Expr ';'
-                            { printf("\tpop %s\n\n", $1); }
+                            { std::cout << "\tpop " << $1 << "\n\n"; }
 ;
 
 PrintStmt:
     T_Print '(' T_StringConstant PActuals ')' ';'
-                            { printf("\tprint %s\n\n", $3); }
+                            { std::cout << "\tprint " << $3 << "\n\n"; }
 ;
 
 PActuals:
@@ -169,12 +167,12 @@ PActuals:
 ;
 
 CallStmt:
-    CallExpr ';'            { printf("\tpop\n\n"); }
+    CallExpr ';'            { std::cout << "\tpop\n\n"; }
 ;
 
 CallExpr:
     T_Identifier '(' Actuals ')'
-                            { printf("\t$%s\n", $1); }
+                            { std::cout << "\t$" << $1 << "\n"; }
 ;
 
 Actuals:
@@ -183,8 +181,8 @@ Actuals:
 ;
 
 ReturnStmt:
-    T_Return Expr ';'       { printf("\tret ~\n\n"); }
-|   T_Return ';'            { printf("\tret\n\n"); }
+    T_Return Expr ';'       { std::cout << "\tret ~\n\n"; }
+|   T_Return ';'            { std::cout << "\tret\n\n"; }
 ;
 
 IfStmt:
@@ -203,15 +201,15 @@ StmtsBlock:
 ;
 
 If:
-    T_If            { _BEG_IF; printf("_begIf_%d:\n", _i); }
+    T_If            { _BEG_IF; std::cout << "_begIf_" << _i << ":\n"; }
 ;
 
 Then:
-    /* empty */     { printf("\tjz _elIf_%d\n", _i); }
+    /* empty */     { std::cout << "\tjz _elIf_" << _i << "\n"; }
 ;
 
 EndThen:
-    /* empty */     { printf("\tjmp _endIf_%d\n_elIf_%d:\n", _i, _i); }
+    /* empty */     { std::cout << "\tjmp _endIf_" << _i << "\n_elIf_" << _i << ":\n"; }
 ;
 
 Else:
@@ -219,7 +217,7 @@ Else:
 ;
 
 EndIf:
-    /* empty */     { printf("_endIf_%d:\n\n", _i); _END_IF; }
+    /* empty */     { std::cout << "_endIf_" << _i << ":\n\n"; _END_IF; }
 ;
 
 WhileStmt:
@@ -228,45 +226,44 @@ WhileStmt:
 ;
 
 While:
-    T_While         { _BEG_WHILE; printf("_begWhile_%d:\n", _w); }
+    T_While         { _BEG_WHILE; std::cout << "_begWhile_" << _w << ":\n"; }
 ;
 
 Do:
-    /* empty */     { printf("\tjz _endWhile_%d\n", _w); }
+    /* empty */     { std::cout << "\tjz _endWhile_" << _w << "\n"; }
 ;
 
 EndWhile:
-    /* empty */     { printf("\tjmp _begWhile_%d\n_endWhile_%d:\n\n", 
-                                _w, _w); _END_WHILE; }
+    /* empty */     { std::cout << "\tjmp _begWhile_" << _w << "\n_endWhile_" << _w << ":\n\n"; _END_WHILE; }
 ;
 
 BreakStmt:
-    T_Break ';'     { printf("\tjmp _endWhile_%d\n", _w); }
+    T_Break ';'     { std::cout << "\tjmp _endWhile_" << _w << "\n"; }
 ;
 
 ContinueStmt:
-    T_Continue ';'  { printf("\tjmp _begWhile_%d\n", _w); }
+    T_Continue ';'  { std::cout << "\tjmp _begWhile_" << _w << "\n"; }
 ;
 
 Expr:
-    Expr '+' Expr           { printf("\tadd\n"); }
-|   Expr '-' Expr           { printf("\tsub\n"); }
-|   Expr '*' Expr           { printf("\tmul\n"); }
-|   Expr '/' Expr           { printf("\tdiv\n"); }
-|   Expr '%' Expr           { printf("\tmod\n"); }
-|   Expr '>' Expr           { printf("\tcmpgt\n"); }
-|   Expr '<' Expr           { printf("\tcmplt\n"); }
-|   Expr T_Ge Expr          { printf("\tcmpge\n"); }
-|   Expr T_Le Expr          { printf("\tcmple\n"); }
-|   Expr T_Eq Expr          { printf("\tcmpeq\n"); }
-|   Expr T_Ne Expr          { printf("\tcmpne\n"); }
-|   Expr T_Or Expr          { printf("\tor\n"); }
-|   Expr T_And Expr         { printf("\tand\n"); }
-|   '-' Expr %prec '!'      { printf("\tneg\n"); }
-|   '!' Expr                { printf("\tnot\n"); }
-|   T_IntConstant           { printf("\tpush %s\n", $1); }
-|   T_Identifier            { printf("\tpush %s\n", $1); }
-|   T_FltConstant           { printf("\tpush %s\n", $1); }
+    Expr '+' Expr           { std::cout << "\tadd\n"; }
+|   Expr '-' Expr           { std::cout << "\tsub\n"; }
+|   Expr '*' Expr           { std::cout << "\tmul\n"; }
+|   Expr '/' Expr           { std::cout << "\tdiv\n"; }
+|   Expr '%' Expr           { std::cout << "\tmod\n"; }
+|   Expr '>' Expr           { std::cout << "\tcmpgt\n"; }
+|   Expr '<' Expr           { std::cout << "\tcmplt\n"; }
+|   Expr T_Ge Expr          { std::cout << "\tcmpge\n"; }
+|   Expr T_Le Expr          { std::cout << "\tcmple\n"; }
+|   Expr T_Eq Expr          { std::cout << "\tcmpeq\n"; }
+|   Expr T_Ne Expr          { std::cout << "\tcmpne\n"; }
+|   Expr T_Or Expr          { std::cout << "\tor\n"; }
+|   Expr T_And Expr         { std::cout << "\tand\n"; }
+|   '-' Expr %prec '!'      { std::cout << "\tneg\n"; }
+|   '!' Expr                { std::cout << "\tnot\n"; }
+|   T_IntConstant           { std::cout << "\tpush " << $1 << "\n"; }
+|   T_Identifier            { std::cout << "\tpush " << $1 << "\n"; }
+|   T_FltConstant           { std::cout << "\tpush " << $1 << "\n"; }
 |   ReadInt                 { /* empty */ }
 |   CallExpr                { /* empty */ }
 |   '(' Expr ')'            { /* empty */ }
@@ -274,14 +271,14 @@ Expr:
 
 ReadInt:
     T_ReadInt '(' T_StringConstant ')'
-                            { printf("\treadint %s\n", $3); }
+                            { std::cout << "\treadint " << $3 << "\n"; }
 ;
 
 %%
 
 int main() {
-      symbol_table = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
+    symbol_table.clear();
     yyparse();
-    g_hash_table_destroy(symbol_table);
+
     return 0;
 }

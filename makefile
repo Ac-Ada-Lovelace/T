@@ -1,9 +1,9 @@
-OUT	  = tcc
+OUT      = tcc
 TESTFILE = test.c
 SCANNER  = scanner.l
 PARSER   = parser.y
 
-CC       = gcc
+CC       = g++
 OBJ      = lex.yy.o y.tab.o
 TESTOUT  = $(basename $(TESTFILE)).asm
 OUTFILES = lex.yy.c y.tab.c y.tab.h y.output $(OUT)
