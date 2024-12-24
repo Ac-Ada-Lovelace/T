@@ -1,11 +1,45 @@
 %{
 #include <stdio.h>
 #include <stdlib.h>
-
+#include <string.h>
+#include <glib.h>
 void yyerror(const char*);
 #define YYSTYPE char *
 int yylex(void);
 #include "y.tab.h"
+
+// 符号表
+GHashTable *symbol_table;
+
+const char* LastType = NULL;
+
+void insertSymbol(const char *name, const char *type) {
+    g_hash_table_insert(symbol_table, g_strdup(name), g_strdup(type));
+    LastType = type;
+}
+
+const char* lookupSymbol(const char *name) {
+    return g_hash_table_lookup(symbol_table, name);
+}
+
+const char* getSymbolType(const char *name) {
+    return lookupSymbol(name);
+}
+
+
+const char* isSymbolInt(const char *name) {
+    return strcmp(lookupSymbol(name), "int") == 0 ? "int" : NULL;
+}
+
+const char* isSymbolFlt(const char *name) {
+    return strcmp(lookupSymbol(name), "flt") == 0 ? "flt" : NULL;
+}
+
+
+
+
+
+
 int ii = 0, itop = -1, istack[100];
 int ww = 0, wtop = -1, wstack[100];
 
@@ -19,9 +53,9 @@ int ww = 0, wtop = -1, wstack[100];
 
 %}
 
-%token T_Int T_Void T_Return T_Print T_ReadInt T_While
+%token T_Int T_Void T_Flt T_Return T_Print T_ReadInt T_While
 %token T_If T_Else T_Break T_Continue T_Le T_Ge T_Eq T_Ne
-%token T_And T_Or T_IntConstant T_StringConstant T_Identifier
+%token T_And T_Or T_IntConstant T_FltConstant T_StringConstant T_Identifier
 
 %left '='
 %left T_Or
@@ -46,6 +80,7 @@ FuncDecl:
 
 RetType:
     T_Int                   { /* empty */ }
+|   T_Flt                   { /* empty */ }
 |   T_Void                  { /* empty */ }
 ;
 
@@ -62,6 +97,9 @@ _Args:
     T_Int T_Identifier      { printf("\targ %s", $2); }
 |   _Args ',' T_Int T_Identifier
                             { printf(", %s", $4); }
+|   T_Flt T_Identifier      { printf("\targ %s", $2); }
+|   _Args ',' T_Flt T_Identifier
+                            { printf(", %s", $4); }
 ;
 
 VarDecls:
@@ -69,10 +107,34 @@ VarDecls:
 |   VarDecls VarDecl ';'    { printf("\n\n"); }
 ;
 
+
 VarDecl:
-    T_Int T_Identifier      { printf("\tvar %s", $2); }
+    T_Int T_Identifier      {   
+                                const char* exists = lookupSymbol($2);
+                                if (exists) {
+                                    fprintf(stderr ,"Error: %s already exists\n", $2);
+                                    exit(1);
+                                }
+                                insertSymbol($2, "int");
+                                printf("\tvar %s", $2);
+                            }
+|   T_Flt T_Identifier      {   
+                                const char* exists = lookupSymbol($2);
+                                if (exists) {
+                                    fprintf(stderr ,"Error: %s already exists\n", $2);
+                                    exit(1);
+                                }
+                                insertSymbol($2, "flt");
+                                printf("\tvar %s", $2); }
 |   VarDecl ',' T_Identifier
-                            { printf(", %s", $3); }
+                            {   
+                                const char* exists = lookupSymbol($3);
+                                if (exists) {
+                                    fprintf(stderr ,"Error: %s already exists\n", $3);
+                                    exit(1);
+                                }
+                                printf(", %s", $3);
+                            }
 ;
 
 Stmts:
@@ -204,6 +266,7 @@ Expr:
 |   '!' Expr                { printf("\tnot\n"); }
 |   T_IntConstant           { printf("\tpush %s\n", $1); }
 |   T_Identifier            { printf("\tpush %s\n", $1); }
+|   T_FltConstant           { printf("\tpush %s\n", $1); }
 |   ReadInt                 { /* empty */ }
 |   CallExpr                { /* empty */ }
 |   '(' Expr ')'            { /* empty */ }
@@ -217,5 +280,8 @@ ReadInt:
 %%
 
 int main() {
-    return yyparse();
+      symbol_table = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
+    yyparse();
+    g_hash_table_destroy(symbol_table);
+    return 0;
 }
