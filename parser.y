@@ -2,6 +2,7 @@
 #include <iostream>
 #include <cstdlib>
 #include <cstring>
+#include <stack>
 #include <unordered_map>
 void yyerror(const char*);
 #define YYSTYPE char *
@@ -9,34 +10,73 @@ int yylex(void);
 #include "y.tab.h"
 
 // 符号表
-std::unordered_map<std::string, std::string> symbol_table;
 
-std::stack<std::unordered_map<std::string, std::string>> symbol_table_stack;
+
+std::stack<std::unordered_map<std::string, std::string>> visible_symbol_stack;
 
 void enterScope() {
-    symbol_table_stack.push(std::unordered_map<std::string, std::string>());
+    visible_symbol_stack.push(std::unordered_map<std::string, std::string>());
+    
 }
 
 void exitScope() {
-    if (!symbol_table_stack.empty()) {
-        symbol_table_stack.pop();
+    if (!visible_symbol_stack.empty()) {
+        visible_symbol_stack.pop();
+        std::cout << "; loss access to scope\n";
+        for (auto it = visible_symbol_stack.top().begin(); it != visible_symbol_stack.top().end(); it++) {
+            std::cout << "; " << it->first << " : " << it->second << "\n";
+        }
     }
 }
+
+int isAccessible(const char *name) {
+    std::stack<std::unordered_map<std::string, std::string>> temp_stack = visible_symbol_stack;
+    while (!temp_stack.empty()) {
+        auto &current_scope = temp_stack.top();
+        if (current_scope.find(name) != current_scope.end()) {
+            return 1;
+        }
+        temp_stack.pop();
+    }
+    return 0;
+}
+
+int isDeclared(const char *name) {
+    std::stack<std::unordered_map<std::string, std::string>> temp_stack = visible_symbol_stack;
+    while (!temp_stack.empty()) {
+        auto &current_scope = temp_stack.top();
+        if (current_scope.find(name) != current_scope.end()) {
+            return 1;
+        }
+        temp_stack.pop();
+    }
+    return 0;
+}
+
+void Declare(const char *name, const char *type) {
+    if (isDeclared(name)) {
+        std::cerr << "Error: " << name << " already exists\n";
+        exit(1);
+    }
+    visible_symbol_stack.top()[name] = type;
+}
+
 
 
 const char* LastType = NULL;
 
 void insertSymbol(const char *name, const char *type) {
-    symbol_table[name] = type;
+    visible_symbol_stack.top()[name] = type;
     LastType = type;
 }
 
 const char* lookupSymbol(const char *name) {
-    auto it = symbol_table.find(name);
-    if (it != symbol_table.end()) {
+    auto it = visible_symbol_stack.top().find(name);
+    if (it != visible_symbol_stack.top().end()) {
         return it->second.c_str();
     }
     return NULL;
+
 }
 
 const char* getSymbolType(const char *name) {
@@ -86,7 +126,7 @@ Program:
 ;
 
 FuncDecl:
-    RetType FuncName '(' Args ')' '{' VarDecls Stmts '}'
+    RetType FuncName '(' Args ')' '{'  Stmts '}'
                             { std::cout << "ENDFUNC\n\n"; }
 ;
 
@@ -96,22 +136,37 @@ RetType:
 |   T_Void                  { /* empty */ }
 ;
 
+// TODO: repeat function name check
 FuncName:
     T_Identifier            { std::cout << "FUNC @" << $1 << ":\n"; }
 ;
+
 
 Args:
     /* empty */             { /* empty */ }
 |   _Args                   { std::cout << "\n\n"; }
 ;
 
+// TODO : repeat arg name check
 _Args:
-    T_Int T_Identifier      { std::cout << "\targ " << $2; }
+    T_Int T_Identifier      { 
+                                Declare($2, "int");
+                                std::cout << "\targ " << $2; 
+                            }
 |   _Args ',' T_Int T_Identifier
-                            { std::cout << ", " << $4; }
-|   T_Flt T_Identifier      { std::cout << "\targ " << $2; }
+                            { 
+                                Declare($4, "int");
+                                std::cout << ", " << $4; 
+                            }
+|   T_Flt T_Identifier      { 
+                                Declare($2, "flt");
+                                std::cout << "\targ " << $2; 
+                            }
 |   _Args ',' T_Flt T_Identifier
-                            { std::cout << ", " << $4; }
+                            { 
+                                Declare($4, "flt");
+                                std::cout << ", " << $4;
+                            }
 ;
 
 VarDecls:
@@ -121,30 +176,17 @@ VarDecls:
 
 VarDecl:
     T_Int T_Identifier      {
-                                const char* exists = lookupSymbol($2);
-                                if (exists) {
-                                    std::cerr << "Error: " << $2 << " already exists\n";
-                                    exit(1);
-                                }
-                                insertSymbol($2, "int");
+                                Declare($2, "int");
                                 std::cout << "\tvar " << $2;
                             }
 |   T_Flt T_Identifier      {
-                                const char* exists = lookupSymbol($2);
-                                if (exists) {
-                                    std::cerr << "Error: " << $2 << " already exists\n";
-                                    exit(1);
-                                }
-                                insertSymbol($2, "flt");
+                                Declare($2, "flt");
+
                                 std::cout << "\tvar " << $2;
                             }
 |   VarDecl ',' T_Identifier {
-                                const char* exists = lookupSymbol($3);
-                                if (exists) {
-                                    std::cerr << "Error: " << $3 << " already exists\n";
-                                    exit(1);
-                                }
-                                insertSymbol($3, LastType);
+                                Declare($3, LastType);
+                                
                                 std::cout << ", " << $3;
                             }
 ;
@@ -163,11 +205,20 @@ Stmt:
 |   WhileStmt               { /* empty */ }
 |   BreakStmt               { /* empty */ }
 |   ContinueStmt            { /* empty */ }
+|   VarDecls                { /* empty */ }
+|   StmtsBlock              { exitScope(); }
 ;
 
 AssignStmt:
     T_Identifier '=' Expr ';'
-                            { std::cout << "\tpop " << $1 << "\n\n"; }
+                            {
+                                
+                                if(isSymbolInt($1)) {
+                                    std::cout << "\tpop " << $1 << "\n\n";
+                                } else if(isSymbolFlt($1)) {
+                                    std::cout << "\tpopf " << $1 << "\n\n";
+                                }
+                            }
 ;
 
 PrintStmt:
@@ -211,7 +262,7 @@ TestExpr:
 ;
 
 StmtsBlock:
-    '{' Stmts '}'           { /* empty */ }
+    '{' Stmts '}'           { enterScope(); }
 ;
 
 If:
@@ -285,6 +336,10 @@ Expr:
                                 std::cout << "\tpushf " << $1 << "\n"; 
                             }
 |   T_Identifier            { 
+                                if (!isAccessible($1)) {
+                                    std::cerr << "Error: " << $1 << " is not accessible\n";
+                                    exit(1);
+                                }
                                 std::cout << "; T_Identifier: " << $1 << "Type: " << getSymbolType($1) << "\n";
                                 std::cout << "\tpush " << $1 << "\n";
                             }
@@ -303,11 +358,10 @@ ReadInt:
 int main() {
     enterScope();
 
-    symbol_table.clear();
     yyparse();
 
-    while(!symbol_table_stack.empty()) {
-        symbol_table_stack.pop();
+    while(!visible_symbol_stack.empty()) {
+        visible_symbol_stack.pop();
     }
 
     return 0;

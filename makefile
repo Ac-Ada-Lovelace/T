@@ -8,7 +8,7 @@ OBJ      = lex.yy.o y.tab.o
 TESTOUT  = $(basename $(TESTFILE)).asm
 OUTFILES = lex.yy.c y.tab.c y.tab.h y.output $(OUT)
 
-CFLAGS   = $(shell pkg-config --cflags glib-2.0)
+CFLAGS   = $(shell pkg-config --cflags glib-2.0) -std=c++17
 LDFLAGS  = $(shell pkg-config --libs glib-2.0)
 
 .PHONY: build test simulate clean
